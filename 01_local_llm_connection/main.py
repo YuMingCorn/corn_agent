@@ -1,6 +1,6 @@
 """01 - 驗證本地端模型連線（OpenAI SDK 與 LangChain ChatOpenAI）。"""
 
-from shared.llm import get_chat_model, get_llm_config, get_openai_client
+from utils.llm import get_chat_model, get_llm_config, get_openai_client
 
 
 def test_openai_sdk() -> None:
@@ -23,10 +23,17 @@ def test_langchain_chat_model() -> None:
     result = llm.invoke("用一句話說明 LangGraph 的用途（請用繁體中文）。")
     print(result.content)
 
+    print("\n--- Streaming 輸出 ---")
+    for chunk in llm.stream("用一句話說明 LangGraph 的用途（請用繁體中文）。"):
+        print(chunk.content, end="", flush=True)
+    print()
+
 
 def main() -> None:
     cfg = get_llm_config()
+
     print(f"目前設定 -> Base URL: {cfg.base_url} | Model: {cfg.model}\n")
+    
     test_openai_sdk()
     test_langchain_chat_model()
 

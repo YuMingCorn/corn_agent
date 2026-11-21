@@ -2,9 +2,9 @@
 
 ## 學習目標
 
-- [ ] 確認本地端模型服務（Ollama / LM Studio 等）的 OpenAI 相容 API 可正常連線
-- [ ] 使用 `openai` 套件完成一次基本對話請求
-- [ ] 使用 `langchain-openai`（後續供 `langgraph` 使用）完成一次基本對話請求
+- [x] 確認本地端模型服務（Ollama / LM Studio 等）的 OpenAI 相容 API 可正常連線
+- [x] 使用 `openai` 套件完成一次基本對話請求
+- [x] 使用 `langchain-openai`（後續供 `langgraph` 使用）完成一次基本對話請求
 
 ## 使用環境與套件
 
@@ -21,7 +21,7 @@ uv run python 01_local_llm_connection/main.py
 
 本地端推理服務大多提供 OpenAI 相容的 REST API（`/v1/chat/completions`），因此只要設定 `base_url` 與本地端已載入的 `model` 名稱，即可無縫銜接 `openai` SDK 與 `langgraph` 生態系。
 
-共用連線邏輯已封裝在 [shared/llm.py](../shared/llm.py)，後續練習可直接匯入使用。
+共用連線邏輯已封裝在 [utils/llm.py](../utils/llm.py)，後續練習可直接匯入使用。
 
 ## 觀察與心得
 

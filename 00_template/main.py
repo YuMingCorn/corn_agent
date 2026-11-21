@@ -1,6 +1,6 @@
 """練習範本進入點。"""
 
-from shared.llm import get_llm_config
+from utils.llm import get_llm_config
 
 
 def main() -> None:

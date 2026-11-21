@@ -13,12 +13,16 @@ corn_agent/
 ├── uv.lock                      # uv 鎖定檔
 ├── .env.example                 # 本地端模型連線設定範本
 ├── .env                         # 個人本機設定（不進 Git）
-├── shared/                      # 共用模組（本地端 LLM 連線工具等）
-│   └── llm.py
+├── utils/                       # 共用工具模組（本地端 LLM 連線、日誌工具等）
+│   ├── llm.py
+│   └── logger.py
 ├── 00_template/                 # 新增練習用的資料夾範本
 │   ├── README.md
 │   └── main.py
-└── 01_local_llm_connection/     # 練習 01：本地端模型連線驗證
+├── 01_local_llm_connection/     # 練習 01：本地端模型連線驗證
+│   ├── README.md
+│   └── main.py
+└── 02_tool_use/                 # 練習 02：工具呼叫與最小 Agent 迴圈
     ├── README.md
     └── main.py
 ```
@@ -31,9 +35,9 @@ corn_agent/
 
 | 編號 | 練習主題 | 使用工具 / 框架 | 狀態 | 資料夾 |
 | :--- | :--- | :--- | :---: | :--- |
-| 01 | 本地端模型連線驗證（OpenAI SDK & LangChain） | `openai`, `langchain-openai` | 🔄 進行中 | [01_local_llm_connection](./01_local_llm_connection/README.md) |
-| 02 | 結構化輸出（Structured Output） | `openai`, `pydantic` | ⬜ 未開始 | - |
-| 03 | 工具呼叫（Tool / Function Calling） | `openai` | ⬜ 未開始 | - |
+| 01 | 本地端模型連線驗證（OpenAI SDK & LangChain） | `openai`, `langchain-openai` | ✅ 已完成 | [01_local_llm_connection](./01_local_llm_connection/README.md) |
+| 02 | 工具呼叫與最小 Agent 迴圈（Tool Use） | `openai` | ✅ 已完成 | [02_tool_use](./02_tool_use/README.md) |
+| 03 | 結構化輸出（Structured Output） | `openai`, `pydantic` | ⬜ 未開始 | - |
 | 04 | 手刻 ReAct Agent 迴圈 | `openai` | ⬜ 未開始 | - |
 | 05 | LangGraph 基礎：State、Node、Edge | `langgraph` | ⬜ 未開始 | - |
 | 06 | LangGraph 搭配 ToolNode 與條件路由 | `langgraph` | ⬜ 未開始 | - |
