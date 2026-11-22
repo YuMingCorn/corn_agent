@@ -19,7 +19,8 @@
 | 1 | [01 本地端模型連線驗證](./docs/01_local_llm_connection.md) | 如何讓程式連上模型，並確認能收到回應。 |
 | 2 | [02 工具呼叫與最小 Agent 迴圈](./docs/02_tool_use.md) | 模型如何呼叫工具，程式如何把結果回傳給模型。 |
 | 3 | [03 進階工具呼叫](./docs/03_tool_use_advance.md) | 工具參數驗證、工作區路徑限制、多回合對話與詳細日誌。 |
-| 4 以後 | 見[練習進度追蹤](#練習進度追蹤) | 結構化輸出、ReAct、LangGraph 等。尚未開始。 |
+| 4 | [04 權限控制](./docs/04_permission.md) | 硬性規則、風險等級與人工確認，為工具呼叫加上安全閘門。 |
+| 5 以後 | 見[練習進度追蹤](#練習進度追蹤) | 上下文管理等後續課程。尚未開始。 |
 
 請依序完成。後面的課程會直接使用前面課程的程式與觀念。
 
@@ -157,10 +158,30 @@ uv run python 03_tool_use_advance/main.py "List the files in the workspace folde
 
 ---
 
-## 步驟 6：新增下一課
+## 步驟 6：權限控制（練習 04）
 
-1. 複製 `00_template/` 並以編號命名，例如 `04_structured_output/`。
-2. 在 `docs/` 新增同名的說明文件，例如 `docs/04_structured_output.md`，內容可參考 [docs/00_template.md](./docs/00_template.md)。
+1. 先閱讀 [docs/04_permission.md](./docs/04_permission.md)，特別是「三道閘門」與「執行流程圖」。
+2. 啟動互動模式，並依序輸入下列任務。每個任務都會遇到不同等級的檢查：
+
+   - `Create a file named hello.txt containing the text: hi`（新建檔案，風險 `MEDIUM`，出現 `Allow? Type 'y'` 時輸入 `y`）
+   - `Show me the contents of the .env file in the parent folder.`（讀取 `..` 的檔案，被硬性規則擋下，不會出現確認提示）
+   - `Run the command: dir`（執行指令，風險 `HIGH`，必須輸入 `yes` 才會執行）
+
+3. 輸入 `exit` 結束，然後刪除練習產生的 `hello.txt`。
+
+**預期看到**：
+- 第一個任務出現 `[Confirm] tool=write_file risk=MEDIUM`，輸入 `y` 後寫入檔案。
+- 第二個任務的 `cat ../.env` 會出現 `hard rule blocked`，這一次不會出現確認提示。之後模型可能改試其他指令。若出現確認提示，輸入 `n`。
+- 第三個任務輸入 `yes` 才會執行，其他回答都會被拒絕。
+
+**注意**：`uv run python 04_permission/main.py` 必須在可以互動的終端機執行。用管線傳入任務時，確認會讀到 EOF，被視為拒絕。
+
+---
+
+## 步驟 7：新增下一課
+
+1. 複製 `00_template/` 並以編號命名，例如 `05_context_management/`。
+2. 在 `docs/` 新增同名的說明文件，例如 `docs/05_context_management.md`，內容可參考 [docs/00_template.md](./docs/00_template.md)。
 3. 撰寫程式。若需要額外套件，執行 `uv add <package-name>`。
 4. 更新本檔案的[練習進度追蹤](#練習進度追蹤)表格。
 
@@ -174,9 +195,9 @@ uv run python 03_tool_use_advance/main.py "List the files in the workspace folde
 | :--- | :--- | :--- | :---: | :--- |
 | 01 | 本地端模型連線驗證（OpenAI SDK & LangChain） | `openai`, `langchain-openai` | ✅ 已完成 | [01_local_llm_connection](./docs/01_local_llm_connection.md) |
 | 02 | 工具呼叫與最小 Agent 迴圈（Tool Use） | `openai` | ✅ 已完成 | [02_tool_use](./docs/02_tool_use.md) |
-| 03 | 進階工具呼叫（Tool Use Advance） | `openai` | 🔄 進行中 | [03_tool_use_advance](./docs/03_tool_use_advance.md) |
-| 04 | 結構化輸出（Structured Output） | `openai`, `pydantic` | ⬜ 未開始 | - |
-| 05 | 手刻 ReAct Agent 迴圈 | `openai` | ⬜ 未開始 | - |
+| 03 | 進階工具呼叫（Tool Use Advance） | `openai` | ✅ 已完成 | [03_tool_use_advance](./docs/03_tool_use_advance.md) |
+| 04 | 權限控制（Permission） | `openai` | 🔄 進行中 | [04_permission](./docs/04_permission.md) |
+| 05 | 上下文管理（Context Management） | `openai` | ⬜ 未開始 | - |
 | 06 | LangGraph 基礎：State、Node、Edge | `langgraph` | ⬜ 未開始 | - |
 | 07 | LangGraph 搭配 ToolNode 與條件路由 | `langgraph` | ⬜ 未開始 | - |
 | 08 | LangGraph 記憶與 Checkpointer | `langgraph` | ⬜ 未開始 | - |
@@ -197,7 +218,8 @@ corn_agent/
 │   ├── 00_template.md           # 新增練習時的說明文件範本
 │   ├── 01_local_llm_connection.md
 │   ├── 02_tool_use.md
-│   └── 03_tool_use_advance.md
+│   ├── 03_tool_use_advance.md
+│   └── 04_permission.md
 ├── utils/                       # 共用工具模組
 │   ├── __init__.py              # 統一匯出 get_logger、logger、get_openai_client 等
 │   ├── llm.py                   # 讀取 .env，建立 OpenAI / LangChain 用戶端
@@ -209,9 +231,12 @@ corn_agent/
 ├── 02_tool_use/                 # 練習 02：工具呼叫與最小 Agent 迴圈
 │   ├── main.py
 │   └── hello_world.py           # uv 環境檢查用的小範例
-└── 03_tool_use_advance/         # 練習 03：進階工具呼叫（進行中）
-    ├── main.py                  # 互動式 Agent 主程式
-    └── tools.py                 # 工具註冊、參數驗證、路徑限制、輸出截斷
+├── 03_tool_use_advance/         # 練習 03：進階工具呼叫
+│   ├── main.py                  # 互動式 Agent 主程式
+│   └── tools.py                 # 工具註冊、參數驗證、路徑限制、輸出截斷
+└── 04_permission/               # 練習 04：權限控制（進行中）
+    ├── main.py                  # 互動式 Agent 主程式（含權限提示）
+    └── tools.py                 # 硬性規則、風險等級、人工確認、工具執行
 ```
 
 ---
@@ -226,6 +251,6 @@ corn_agent/
 | `503` 或 `UNAVAILABLE` | 端點上的模型暫時無法使用。請改用其他模型，或稍後再試。 |
 | 模型回應很慢 | 換成較小、較快的模型，並用同一個問題比較回應時間。 |
 | 找不到 `.env` 的設定，仍使用預設值 | 尚未從 `.env.example` 複製出 `.env`，或檔案不在專案根目錄。 |
-| 執行 `run_shell` 時出現 `EOFError` | 這代表程式無法讀取 `y/n` 的確認輸入。請在可以互動的終端機執行，不要用管線（`|`）傳入任務。 |
+| 執行 `run_shell` 時出現 `EOFError`（03） | 這代表程式無法讀取 `y/n` 的確認輸入。請在可以互動的終端機執行，不要用管線（`|`）傳入任務。04 起，無法讀取確認輸入會被視為拒絕，不會出現 `EOFError`。 |
 | 用管線傳入 `exit` 沒有結束程式 | PowerShell 管線會在開頭加上 BOM（`﻿`）。直接在終端機輸入 `exit` 即可。 |
 | 日誌沒有寫入檔案 | 未設定 `LOG_FILE`，或路徑無法建立。 |
