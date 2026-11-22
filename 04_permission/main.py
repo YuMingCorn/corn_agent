@@ -5,7 +5,9 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from tools import TOOLS, execute_tool, get_schemas
+from permissions import PermissionManager
+from tools import TOOLS, execute_tool, get_schemas, parse_args
+
 from utils import get_logger, get_openai_client
 
 human_logger = get_logger("HUMAN")
@@ -30,8 +32,38 @@ def _preview(text: str | None, limit: int = 120) -> str:
     return f"{single_line[:limit]}..."
 
 
+def handle_call(step: int, call: Any, perms: PermissionManager) -> str:
+    """Check one tool call, then run it. The result is always text for the model.
+    Order: call type -> known tool and valid arguments -> permission check -> run."""
+    if call.type != "function":
+        harness_logger.warning(
+            f"[Step {step}] Skipping unsupported tool call type: {call.type}"
+        )
+        return f"Tool execution error: unsupported tool call type {call.type!r}"
+
+    name = call.function.name
+    raw_args = call.function.arguments or "{}"
+    model_logger.info(f"[Step {step}] Tool call -> {name}({_preview(raw_args)})")
+
+    args, error = parse_args(name, raw_args)
+    if error:
+        return error
+
+    decision = perms.check(name, args)
+    if not decision.allowed:
+        # Send the denial back, so the model can choose another way.
+        return f"Permission denied: {decision.reason}"
+
+    harness_logger.info(f"[Step {step}] Executing local tool: {name}")
+    return execute_tool(name, args)
+
+
 def run_task(
-    client: Any, model: str, task: str, messages: list[dict[str, Any]]
+    client: Any,
+    model: str,
+    task: str,
+    messages: list[dict[str, Any]],
+    perms: PermissionManager,
 ) -> str:
     """Run the agent loop for one user task.
 
@@ -74,26 +106,9 @@ def run_task(
 
         # Every tool call needs a matching "tool" message, or the API rejects the next request
         for call in msg.tool_calls:
-            if call.type != "function":
-                harness_logger.warning(
-                    f"[Step {step}] Skipping unsupported tool call type: {call.type}"
-                )
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call.id,
-                        "content": f"Tool execution error: unsupported tool call type {call.type!r}",
-                    }
-                )
-                continue
-
-            name = call.function.name
-            raw_args = call.function.arguments or "{}"
-            model_logger.info(f"[Step {step}] Tool call -> {name}({_preview(raw_args)})")
-            harness_logger.info(f"[Step {step}] Executing local tool: {name}")
-            result = execute_tool(name, raw_args)
+            result = handle_call(step, call, perms)
             harness_logger.info(
-                f"[Step {step}] Appending tool '{name}' output ({len(result)} chars) to messages: "
+                f"[Step {step}] Appending tool output ({len(result)} chars) to messages: "
                 f"{_preview(result)}"
             )
             messages.append(
@@ -110,10 +125,11 @@ def main() -> None:
         f"Agent ready (model={model}, max_steps={MAX_STEPS}, tools={list(TOOLS)})"
     )
     messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    perms = PermissionManager()
 
     # One-shot mode: pass a task on the command line, then exit
     if len(sys.argv) >= 2:
-        print(run_task(client, model, sys.argv[1], messages))
+        print(run_task(client, model, sys.argv[1], messages, perms))
         return
 
     # Interactive mode: keep the conversation until the user types exit or quit
@@ -127,7 +143,7 @@ def main() -> None:
             break
         if not question:
             continue
-        answer = run_task(client, model, question, messages)
+        answer = run_task(client, model, question, messages, perms)
         print(f"\nAssistant: {answer}")
 
     harness_logger.info("Session ended")
