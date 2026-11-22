@@ -33,7 +33,7 @@ def main() -> None:
     cfg = get_llm_config()
 
     print(f"目前設定 -> Base URL: {cfg.base_url} | Model: {cfg.model}\n")
-    
+
     test_openai_sdk()
     test_langchain_chat_model()
 

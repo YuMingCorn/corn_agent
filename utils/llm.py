@@ -28,10 +28,16 @@ def get_llm_config(model: str | None = None) -> LLMConfig:
     )
 
 
-def get_openai_client(model: str | None = None) -> tuple[OpenAI, str]:
-    """建立指向本地端 OpenAI 相容端點的 OpenAI Client，並回傳 (client, model)。"""
+def get_openai_client(
+    model: str | None = None,
+    timeout: float = 60.0,
+) -> tuple[OpenAI, str]:
+    """建立指向本地端 OpenAI 相容端點的 OpenAI Client，並回傳 (client, model)。
+
+    timeout 為等待伺服器回應的秒數，超過時會拋出例外，避免輸入有誤時無限等待。
+    """
     cfg = get_llm_config(model=model)
-    client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key)
+    client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key, timeout=timeout)
     return client, cfg.model
 
 
