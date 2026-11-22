@@ -14,6 +14,7 @@ corn_agent/
 ├── .env.example                 # 本地端模型連線設定範本
 ├── .env                         # 個人本機設定（不進 Git）
 ├── utils/                       # 共用工具模組（本地端 LLM 連線、日誌工具等）
+│   ├── __init__.py              # 統一匯出 get_logger、logger、get_openai_client 等
 │   ├── llm.py
 │   └── logger.py
 ├── 00_template/                 # 新增練習用的資料夾範本
@@ -24,10 +25,12 @@ corn_agent/
 │   └── main.py
 ├── 02_tool_use/                 # 練習 02：工具呼叫與最小 Agent 迴圈
 │   ├── README.md
-│   └── main.py
-└── 03_tool_use_advance/         # 練習 03：進階工具呼叫（模板）
+│   ├── main.py
+│   └── hello_world.py           # uv 環境檢查用的小範例
+└── 03_tool_use_advance/         # 練習 03：進階工具呼叫（模板，進行中）
     ├── README.md
-    └── main.py
+    ├── main.py
+    └── tools.py                 # 練習 03 的工具定義（進行中，尚未提交）
 ```
 
 ---
@@ -60,7 +63,7 @@ corn_agent/
 | :--- | :--- | :--- | :---: | :--- |
 | 01 | 本地端模型連線驗證（OpenAI SDK & LangChain） | `openai`, `langchain-openai` | ✅ 已完成 | [01_local_llm_connection](./01_local_llm_connection/README.md) |
 | 02 | 工具呼叫與最小 Agent 迴圈（Tool Use） | `openai` | ✅ 已完成 | [02_tool_use](./02_tool_use/README.md) |
-| 03 | 進階工具呼叫（Tool Use Advance） | `openai` | ⬜ 未開始 | [03_tool_use_advance](./03_tool_use_advance/README.md) |
+| 03 | 進階工具呼叫（Tool Use Advance） | `openai` | 🔄 進行中 | [03_tool_use_advance](./03_tool_use_advance/README.md) |
 | 04 | 結構化輸出（Structured Output） | `openai`, `pydantic` | ⬜ 未開始 | - |
 | 05 | 手刻 ReAct Agent 迴圈 | `openai` | ⬜ 未開始 | - |
 | 06 | LangGraph 基礎：State、Node、Edge | `langgraph` | ⬜ 未開始 | - |
@@ -96,10 +99,28 @@ Copy-Item .env.example .env
 | **LM Studio** | `http://localhost:1234/v1` | 依 LM Studio 載入的模型 ID |
 | **vLLM / llama.cpp** | `http://localhost:8000/v1` | 依啟動時指定的模型名稱 |
 
+`.env` 內可設定的變數如下：
+
+| 變數 | 必填 | 預設值 | 說明 |
+| :--- | :---: | :--- | :--- |
+| `LLM_BASE_URL` | 否 | `http://localhost:11434/v1` | OpenAI 相容端點的位址 |
+| `LLM_API_KEY` | 否 | `ollama` | 本地端通常不驗證，但 SDK 需要非空字串 |
+| `LLM_MODEL` | 否 | `qwen2.5:7b` | 本地端已載入的模型名稱 |
+| `LOG_LEVEL` | 否 | `INFO` | 日誌等級：`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `LOG_FILE` | 否 | 未設定 | 設定後會同時把日誌寫入此檔案（例如 `logs/corn_agent.log`） |
+| `LOG_COLOR` | 否 | 依終端自動判斷 | 設為 `0` / `false` / `no` / `off` 可關閉彩色輸出 |
+| `NO_COLOR` | 否 | 未設定 | 只要設定此變數（任何值）即關閉彩色輸出 |
+
 ### 3. 執行練習
 
 ```powershell
 uv run python 01_local_llm_connection/main.py
+```
+
+若只想確認 `uv` 環境可正常執行，可以先執行 `02_tool_use/hello_world.py`：
+
+```powershell
+uv run python 02_tool_use/hello_world.py
 ```
 
 ### 4. 新增下一次練習
@@ -108,3 +129,13 @@ uv run python 01_local_llm_connection/main.py
 2. 填寫該資料夾內的 `README.md` 與程式碼。
 3. 更新本檔案的「練習進度追蹤」表格。
 4. 若需要額外套件，使用 `uv add <package-name>` 安裝。
+
+### 5. 常見問題
+
+| 現象 | 可能原因與處理方式 |
+| :--- | :--- |
+| `uv: command not found` | 尚未安裝 uv。請依官方文件安裝後，重新開啟終端機。 |
+| `Connection refused` 或連線逾時 | 本地端推理服務未啟動，或 `LLM_BASE_URL` 的連接埠錯誤。請確認服務已開啟並核對位址。`get_openai_client()` 預設逾時為 60 秒。 |
+| 回應 `model not found` 之類的錯誤 | `LLM_MODEL` 與本地端已載入的模型名稱不一致。請以服務端的模型清單為準修改 `.env`。 |
+| 找不到 `.env` 的設定、仍使用預設值 | 尚未從 `.env.example` 複製出 `.env`，或檔案放錯位置（建議放在專案根目錄）。 |
+| 日誌沒有寫入檔案 | 未設定 `LOG_FILE`，或路徑無法建立。 |
