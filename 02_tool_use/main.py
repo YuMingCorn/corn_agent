@@ -9,10 +9,12 @@ from collections.abc import Callable
 from typing import Any
 
 from utils import get_logger, get_openai_client
+from utils.trace_recorder import Recorder
 
 human_logger = get_logger("HUMAN")
 harness_logger = get_logger("HARNESS")
 model_logger = get_logger("MODEL")
+recorder = Recorder("02_tool_use")
 
 MAX_STEPS = 10
 SYSTEM = (
@@ -108,11 +110,14 @@ TOOLS: list[Any] = [
 
 
 def main(task: str) -> None:
+    code = "main.py:main"
+    recorder.trace_lines(__file__)  # record each statement of this file, step by step
     client, model = get_openai_client()
     harness_logger.info(
         f"Starting agent loop (model={model}, max_steps={MAX_STEPS}, tools={list(TOOL_FUNCS)})"
     )
     human_logger.info(f"Submitted task: {task}")
+    recorder.start_task(task, code=code)
 
     messages: list[Any] = [
         {"role": "system", "content": SYSTEM},
@@ -123,6 +128,7 @@ def main(task: str) -> None:
         harness_logger.info(
             f"[Step {step}/{MAX_STEPS}] Sending {len(messages)} message(s) to model"
         )
+        recorder.model_input(step, messages, TOOLS, code=code)
         resp = client.chat.completions.create(
             model=model,
             messages=messages,
@@ -130,6 +136,13 @@ def main(task: str) -> None:
         )
         msg = resp.choices[0].message
         messages.append(msg.model_dump(exclude_none=True))
+        recorder.event(
+            "MODEL",
+            code,
+            f"Responded (tool calls={len(msg.tool_calls or [])})",
+            step=step,
+            detail=msg.content,
+        )
 
         if msg.content:
             model_logger.info(f"[Step {step}] Response: {_preview(msg.content)}")
@@ -138,6 +151,7 @@ def main(task: str) -> None:
         if not msg.tool_calls:
             model_logger.info(f"[Step {step}] No tool calls -> returning final answer")
             harness_logger.info(f"Agent finished in {step} step(s)")
+            recorder.event("HARNESS", code, "Task finished, final answer returned", step=step)
             print(f"\n[Done in {step} step(s)]\n{msg.content}")
             return
 
@@ -151,13 +165,23 @@ def main(task: str) -> None:
                 harness_logger.warning(
                     f"[Step {step}] Skipping unsupported tool call type: {call.type}"
                 )
+                recorder.event(
+                    "HARNESS", code,
+                    f"Skipped unsupported tool call type {call.type!r}",
+                    step=step, level="warning",
+                )
                 continue
             name = call.function.name
             raw_args = call.function.arguments
             model_logger.info(
                 f"[Step {step}] Tool call -> {name}({_preview(raw_args)})"
             )
+            recorder.event(
+                "MODEL", code, f"Requested tool call {name}",
+                step=step, detail=raw_args,
+            )
             harness_logger.info(f"[Step {step}] Executing local tool: {name}")
+            recorder.event("HARNESS", code, f"Executing local tool {name}", step=step)
             try:
                 args = json.loads(raw_args)
                 result = TOOL_FUNCS[name](**args)
@@ -165,18 +189,36 @@ def main(task: str) -> None:
                 harness_logger.error(
                     f"[Step {step}] Tool '{name}' failed: {type(e).__name__}: {e}"
                 )
+                recorder.event(
+                    "TOOLS", code, f"Tool '{name}' failed: {type(e).__name__}: {e}",
+                    step=step, level="error",
+                )
                 result = f"Tool execution error: {type(e).__name__}: {e}"
             harness_logger.info(
                 f"[Step {step}] Appending tool '{name}' output ({len(result)} chars) to messages: "
                 f"{_preview(result)}"
+            )
+            recorder.event(
+                "HARNESS", code,
+                f"Appending result of {name} to messages ({len(result)} characters)",
+                step=step, detail=result,
             )
             messages.append(
                 {"role": "tool", "tool_call_id": call.id, "content": result}
             )
 
     harness_logger.warning(f"Stopped after reaching the {MAX_STEPS}-step limit")
+    recorder.event("HARNESS", code, f"Stopped after {MAX_STEPS}-step limit", level="warning")
 
 
 if __name__ == "__main__":
     task_arg = sys.argv[1] if len(sys.argv) >= 2 else DEFAULT_TASK
-    main(task_arg)
+    try:
+        main(task_arg)
+    finally:
+        # Mark the run as finished so the HTML page stops reloading and becomes a replay player.
+        json_path = recorder.finish()
+        try:
+            print(f"Trace view: {json_path.with_suffix('.html')}")
+        except Exception:  # a console that cannot show the path must not hide the real result
+            pass
