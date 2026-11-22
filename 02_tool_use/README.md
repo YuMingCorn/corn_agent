@@ -28,6 +28,22 @@ uv run python 02_tool_use/main.py
 uv run python 02_tool_use/main.py "List files in the workspace and summarize the project."
 ```
 
+### 附錄：`hello_world.py`（環境檢查）
+
+`02_tool_use/hello_world.py` 是一個與 Agent 無關的小範例，只印出三行問候語，用來確認 `uv` 環境與 Python 執行流程正常：
+
+```powershell
+uv run python 02_tool_use/hello_world.py
+```
+
+預期輸出：
+
+```text
+Hello, World!
+Hello, uv!
+Hello, corn_agent!
+```
+
 ## 系統角色與執行流程圖
 
 在 Agent 系統中，**模型（Model）本身不會直接操作檔案或執行指令**，真正負責協調迴圈與執行工具的是外層的 **Harness**，而高風險操作則由 **Human** 把關。

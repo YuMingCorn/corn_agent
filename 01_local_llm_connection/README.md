@@ -27,6 +27,7 @@ uv run python 01_local_llm_connection/main.py
    - `test_openai_sdk()`：透過 `get_openai_client()` 驗證原生 OpenAI SDK 對話請求。
    - `test_langchain_chat_model()`：透過 `get_chat_model()` 驗證 `ChatOpenAI` 的一般回應（`invoke`）與即時串流輸出（`stream`）。
 3. **共用封裝**：連線設定與初始化邏輯已封裝在 [utils/llm.py](../utils/llm.py)，後續練習可直接匯入使用。
+   - `get_openai_client()` 預設等待回應的逾時為 60 秒（`timeout` 參數），避免服務沒有回應時程式無限等待。
 
 ## 觀察與心得
 
