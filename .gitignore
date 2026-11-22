@@ -30,6 +30,3 @@ Thumbs.db
 # Logs
 logs/
 *.log
-
-# Harness traces written by lessons 02, 03 and 04 (contain model input and tool output)
-traces/

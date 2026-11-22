@@ -176,8 +176,6 @@ uv run python 03_tool_use_advance/main.py "List the files in the workspace folde
 
 **注意**：`uv run python 04_permission/main.py` 必須在可以互動的終端機執行。用管線傳入任務時，確認會讀到 EOF，被視為拒絕。
 
-4. 執行時，終端機會印出 HTML 頁面的路徑。用瀏覽器打開它：左邊是程式碼，目前執行的那一行會標黃；右邊是送給模型的 messages，依 `SYSTEM`、`USER`、`ASSISTANT`、`TOOL RESULT` 分色；下方說明這一行誰做了什麼。執行中每 2 秒自動更新；執行結束後可以用下一格、上一格、播放逐行回放。02、03、04 三課都有這份頁面。說明見 [docs/04_permission.md](./docs/04_permission.md#執行紀錄與視覺化)。
-
 ---
 
 ## 步驟 7：新增下一課
@@ -225,9 +223,7 @@ corn_agent/
 ├── utils/                       # 共用工具模組
 │   ├── __init__.py              # 統一匯出 get_logger、logger、get_openai_client 等
 │   ├── llm.py                   # 讀取 .env，建立 OpenAI / LangChain 用戶端
-│   ├── logger.py                # 日誌設定（彩色輸出、檔案輪替）
-│   ├── trace_recorder.py        # 執行紀錄：誰做了什麼、model 的完整輸入（02、03、04 共用）
-│   └── trace_viewer.py          # 把執行紀錄轉成 HTML 頁面（執行中即時更新、結束後可回放）
+│   └── logger.py                # 日誌設定（彩色輸出、檔案輪替）
 ├── 00_template/                 # 新增練習用的程式範本
 │   └── main.py
 ├── 01_local_llm_connection/     # 練習 01：模型連線驗證
@@ -240,12 +236,8 @@ corn_agent/
 │   └── tools.py                 # 工具註冊、參數驗證、路徑限制、輸出截斷
 └── 04_permission/               # 練習 04：權限控制（進行中）
     ├── main.py                  # 互動式 Agent 主程式（含權限提示）
-    ├── tools.py                 # 硬性規則、風險等級、人工確認、工具執行
+    └── tools.py                 # 硬性規則、風險等級、人工確認、工具執行
 ```
-
-專案根目錄的 `traces/<課名>/` 存放 02、03、04 的執行紀錄與 HTML 頁面（已加入 `.gitignore`）。
-
-`utils/` 下新增兩個共用模組：`trace_recorder.py`（記錄執行紀錄）與 `trace_viewer.py`（產生 HTML 頁面）。
 
 ---
 

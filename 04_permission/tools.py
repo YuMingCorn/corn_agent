@@ -17,11 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from utils import get_logger
-from utils.trace_recorder import Recorder
 
 logger = get_logger("TOOLS")
 human_logger = get_logger("HUMAN")
-recorder = Recorder("04_permission")  # shared by main.py and the tool functions
 
 MAX_OUTPUT = 8000
 SHELL_TIMEOUT = 60
@@ -79,7 +77,7 @@ def _params(**props):
 
 
 # Names that no tool may read or write. Compared case-insensitively.
-DENIED_NAMES = {".git", ".venv", "traces"}  # traces holds full past conversations
+DENIED_NAMES = {".git", ".venv"}
 DENIED_PREFIX = ".env"  # covers .env, .env.local, and similar files
 # Source files of this lesson. Tools may read them but never change them.
 PROTECTED_FILES = {"main.py", "tools.py"}
@@ -117,8 +115,8 @@ def _truncate(text: str) -> str:
 _SHELL_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\.\."), "parent-directory reference (..)"),
     (
-        re.compile(r"\.env\b|\.git\b|\.venv\b|\btraces\b", re.IGNORECASE),
-        "protected name (.env, .git, .venv, traces)",
+        re.compile(r"\.env\b|\.git\b|\.venv\b", re.IGNORECASE),
+        "protected name (.env, .git, .venv)",
     ),
     (
         re.compile(
@@ -224,12 +222,7 @@ def _confirm(name: str, args: dict[str, Any], risk: str) -> bool:
         if risk == HIGH
         else "Allow? Type 'y' to allow, anything else denies"
     )
-    description = _describe(name, args)
-    print(f"\n[Confirm] tool={name} risk={risk}\n{description}")
-    recorder.event(
-        "HUMAN", "tools.py:_confirm", f"Asked to confirm {name} (risk={risk}, expects '{expected}')",
-        detail=description,
-    )
+    print(f"\n[Confirm] tool={name} risk={risk}\n{_describe(name, args)}")
     try:
         answer = input(f"{hint}: ").strip().lower()
     except (EOFError, KeyboardInterrupt):
@@ -239,13 +232,8 @@ def _confirm(name: str, args: dict[str, Any], risk: str) -> bool:
     approved = answer == expected
     if approved:
         human_logger.info(f"Approved {name} (risk={risk})")
-        recorder.event("HUMAN", "tools.py:_confirm", f"Approved {name} (risk={risk})")
     else:
         human_logger.warning(f"Denied {name} (risk={risk})")
-        recorder.event(
-            "HUMAN", "tools.py:_confirm", f"Denied {name} (risk={risk})", level="warning",
-            detail=f"answer was {answer!r}" if answer else "no answer (EOF, Ctrl-C or empty)",
-        )
     return approved
 
 
@@ -380,10 +368,6 @@ def execute_tool(name: str, raw_args: str) -> str:
         blocked = _hard_rule(name, args)
         if blocked:
             logger.warning(f"hard rule blocked {name}: {blocked}")
-            recorder.event(
-                "TOOLS", "tools.py:_hard_rule", f"Hard rule blocked {name}: {blocked}",
-                level="warning", detail=json.dumps(args, ensure_ascii=False),
-            )
             return (
                 f"Tool execution error: {blocked}. "
                 "This action is not allowed. Do not retry it."
@@ -395,11 +379,6 @@ def execute_tool(name: str, raw_args: str) -> str:
             return DENIED_MESSAGE
     except Exception as e:  # noqa: BLE001 - fail closed
         logger.error(f"permission check failed for {name}: {type(e).__name__}: {e}")
-        recorder.event(
-            "TOOLS", "tools.py:execute_tool",
-            f"Permission check failed for {name}, action not run ({type(e).__name__})",
-            level="error", detail=str(e),
-        )
         return (
             f"Tool execution error: could not check permission ({type(e).__name__}: {e}). "
             "The action was not run. Do not retry the same action."
@@ -409,15 +388,7 @@ def execute_tool(name: str, raw_args: str) -> str:
         result = TOOLS[name]["func"](**args)
     except Exception as e:  # noqa: BLE001 - report to the model so it can recover
         logger.error(f"tool {name} failed: {type(e).__name__}: {e}")
-        recorder.event(
-            "TOOLS", "tools.py:execute_tool", f"Tool {name} failed ({type(e).__name__})",
-            level="error", detail=str(e),
-        )
         return f"Tool execution error: {type(e).__name__}: {e}"
 
     logger.info(f"tool {name} finished ({len(str(result))} characters)")
-    recorder.event(
-        "TOOLS", "tools.py:execute_tool", f"Tool {name} finished ({len(str(result))} characters)",
-        detail=str(result),
-    )
     return _truncate(str(result))
