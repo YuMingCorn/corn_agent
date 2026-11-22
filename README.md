@@ -1,59 +1,168 @@
-# Corn Agent - AI Agent 練習紀錄
+# Corn Agent - AI Agent 循序漸進教學
 
-本專案用於系統化記錄 AI Agent 的學習與實作練習，使用 **本地端模型（Local LLM）** 搭配 **OpenAI SDK**、**LangGraph** 等工具，並透過 **uv** 管理 Python 環境。
+本專案是一套 AI Agent 的實作教學。每一課都在前一課的基礎上增加一種能力。你可以照著本文件的步驟，從安裝環境開始，一路做到最後一課。
+
+程式使用 **OpenAI 相容的模型端點**（本地端或雲端皆可），並以 **uv** 管理 Python 環境。
 
 ---
 
-## 專案結構
+## 這份教學適合誰
 
-```text
-corn_agent/
-├── README.md                    # 專案總覽與練習進度追蹤（本檔案）
-├── pyproject.toml               # uv 專案設定與共用相依套件
-├── uv.lock                      # uv 鎖定檔
-├── .env.example                 # 本地端模型連線設定範本
-├── .env                         # 個人本機設定（不進 Git）
-├── docs/                        # 所有練習的說明文件
-│   ├── 00_template.md           # 新增練習時的說明文件範本
-│   ├── 01_local_llm_connection.md
-│   ├── 02_tool_use.md
-│   └── 03_tool_use_advance.md
-├── utils/                       # 共用工具模組（本地端 LLM 連線、日誌工具等）
-│   ├── __init__.py              # 統一匯出 get_logger、logger、get_openai_client 等
-│   ├── llm.py
-│   └── logger.py
-├── 00_template/                 # 新增練習用的程式範本
-│   └── main.py
-├── 01_local_llm_connection/     # 練習 01：本地端模型連線驗證
-│   └── main.py
-├── 02_tool_use/                 # 練習 02：工具呼叫與最小 Agent 迴圈
-│   ├── main.py
-│   └── hello_world.py           # uv 環境檢查用的小範例
-└── 03_tool_use_advance/         # 練習 03：進階工具呼叫（進行中）
-    ├── main.py
-    └── tools.py                 # 練習 03 的工具定義（進行中，尚未提交）
+- 會寫基本的 Python（函式、字串、讀寫檔案）。
+- 會使用終端機。本文的指令以 **Windows PowerShell** 為例。macOS 或 Linux 使用者只需要改用對應的 shell 語法。
+- 能取得一個 OpenAI 相容的模型端點，例如 Ollama 或 Google Gemini 的 OpenAI 相容 API。
+
+## 學習路線總覽
+
+| 順序 | 課程 | 你會學到什麼 |
+| :---: | :--- | :--- |
+| 1 | [01 本地端模型連線驗證](./docs/01_local_llm_connection.md) | 如何讓程式連上模型，並確認能收到回應。 |
+| 2 | [02 工具呼叫與最小 Agent 迴圈](./docs/02_tool_use.md) | 模型如何呼叫工具，程式如何把結果回傳給模型。 |
+| 3 | [03 進階工具呼叫](./docs/03_tool_use_advance.md) | 工具參數驗證、工作區路徑限制、多回合對話與詳細日誌。 |
+| 4 以後 | 見[練習進度追蹤](#練習進度追蹤) | 結構化輸出、ReAct、LangGraph 等。尚未開始。 |
+
+請依序完成。後面的課程會直接使用前面課程的程式與觀念。
+
+---
+
+## 步驟 1：安裝 uv 與相依套件
+
+1. 依 [uv 官方文件](https://docs.astral.sh/uv/) 安裝 uv。
+2. 安裝後重新開啟終端機，確認 uv 可以使用：
+
+   ```powershell
+   uv --version
+   ```
+
+3. 在專案根目錄執行，安裝所有相依套件：
+
+   ```powershell
+   uv sync
+   ```
+
+**完成標準**：指令結束後沒有錯誤訊息。`uv` 會自動建立 `.venv/` 虛擬環境，你不需要手動啟用它。
+
+---
+
+## 步驟 2：建立 `.env` 並設定模型端點
+
+`.env` 是你自己的設定檔，裡面會放端點位址、金鑰與模型名稱。它已被 Git 忽略，不會被提交。
+
+1. 從範本複製一份：
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. 用編輯器打開 `.env`，設定以下三項：
+
+   | 變數 | 說明 | 範例 |
+   | :--- | :--- | :--- |
+   | `LLM_BASE_URL` | OpenAI 相容端點的位址 | `http://localhost:11434/v1`（Ollama） |
+   | `LLM_API_KEY` | 金鑰。本地端通常不驗證，但不能是空字串 | `ollama` |
+   | `LLM_MODEL` | 端點上已存在的模型名稱 | `qwen2.5:7b` |
+
+   常見的端點設定：
+
+   | 服務 | 預設 `LLM_BASE_URL` | 範例 `LLM_MODEL` |
+   | :--- | :--- | :--- |
+   | **Ollama**（本地端） | `http://localhost:11434/v1` | `qwen2.5:7b`、`llama3.1:8b` |
+   | **LM Studio**（本地端） | `http://localhost:1234/v1` | 依 LM Studio 載入的模型 ID |
+   | **vLLM / llama.cpp**（本地端） | `http://localhost:8000/v1` | 依啟動時指定的模型名稱 |
+   | **Google Gemini**（雲端） | `https://generativelanguage.googleapis.com/v1beta/openai/` | 例如 `gemini-flash-lite-latest` |
+
+3. 若要選擇模型，可以先查詢端點的模型清單。模型回應速度差很多，建議用同一個簡單問題比較幾個模型，選最快且穩定的一個。
+
+**注意**：雲端端點需要真正的 API 金鑰，請勿把金鑰寫進程式碼或提交到 Git。
+
+`.env` 其他可選的變數如下：
+
+| 變數 | 預設值 | 說明 |
+| :--- | :--- | :--- |
+| `LOG_LEVEL` | `INFO` | 日誌等級：`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `LOG_FILE` | 未設定 | 設定後，日誌也會寫入此檔案（例如 `logs/corn_agent.log`） |
+| `LOG_COLOR` | 依終端自動判斷 | 設為 `0`、`false`、`no` 或 `off` 可關閉彩色輸出 |
+| `NO_COLOR` | 未設定 | 只要設定此變數（任何值）即關閉彩色輸出 |
+
+---
+
+## 步驟 3：驗證連線（練習 01）
+
+執行：
+
+```powershell
+uv run python 01_local_llm_connection/main.py
 ```
 
+**預期看到**：程式先印出目前的 `Base URL` 與 `Model`，再依序完成「原生 `openai` SDK」與「`langchain-openai`」兩組測試，並印出模型的回應。
+
+**如果失敗**：先看本文件最下方的[常見問題](#常見問題)。大多數問題出在 `.env` 的位址、金鑰或模型名稱。
+
+完成本步驟後，後面所有課程都可以使用同一組設定。
+
 ---
 
-## 章節說明
+## 步驟 4：理解最小 Agent 迴圈（練習 02）
 
-### [01_local_llm_connection](./docs/01_local_llm_connection.md) — 本地端模型連線驗證
-- **在做什麼**：驗證本機 LLM 服務（如 Ollama / LM Studio）的 OpenAI 相容端點可正常運作，作為後續所有 Agent 練習的環境基礎檢查。
-- **實作重點**：
-  - 透過共用模組 [utils/llm.py](./utils/llm.py) 讀取 `.env` 設定（`LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`）。
-  - 分別以原生 `openai` SDK 與 `langchain-openai`（`ChatOpenAI`）完成對話請求，並驗證 `invoke` 同步呼叫與 `stream` 串流輸出。
+1. 先閱讀 [docs/02_tool_use.md](./docs/02_tool_use.md) 的「系統角色與執行流程圖」。
+2. 執行預設任務：
 
-### [02_tool_use](./docs/02_tool_use.md) — 工具呼叫與最小 Agent 迴圈
-- **在做什麼**：不依賴 Agent 框架，直接用原生 `openai` SDK 手刻一個最小可用的多步驟 Tool-Use Agent 迴圈，讓模型能自主呼叫本地端工具完成任務。
-- **實作重點**：
-  - 定義 `read_file`、`write_file`、`run_shell` 三個本地端工具與對應的 OpenAI Function Calling Schema。
-  - 實作 `MAX_STEPS = 10` 的迭代迴圈：呼叫模型 → 解析 `tool_calls` → 執行工具並以 `role: "tool"` 回傳結果（含例外捕捉讓模型自行修正），直到模型不再呼叫工具為止。
-  - 針對 `run_shell` 加入人工確認（Human-in-the-loop `y/n`）、60 秒逾時保護與輸出截斷（最後 4000 字元）。
+   ```powershell
+   uv run python 02_tool_use/main.py
+   ```
 
-### [03_tool_use_advance](./docs/03_tool_use_advance.md) — 進階工具呼叫（進行中）
-- **在做什麼**：延續 `02_tool_use`，加入工具參數驗證、工作區路徑邊界、輸出截斷與多回合對話。已實作並完成端到端測試，平行工具呼叫尚未實作。
-- **實作重點**：工具以 `@tool` 裝飾器註冊於 [tools.py](./03_tool_use_advance/tools.py)，路徑限制在工作區內，並提供 `HUMAN` / `HARNESS` / `MODEL` / `TOOLS` 四組日誌。流程圖與說明見章節文件。
+   或是自己指定任務：
+
+   ```powershell
+   uv run python 02_tool_use/main.py "List the files in the current directory and summarize them."
+   ```
+
+3. 當模型要執行 shell 指令時，終端會顯示 `Proceed? (y/n)`。輸入 `y` 允許執行，輸入 `n` 拒絕。
+
+**預期看到**：日誌依序出現 `HUMAN`、`HARNESS`、`MODEL` 三種角色的訊息。最後印出 `[Done in N step(s)]` 與最終回答。
+
+**動手試試**：提出一個需要讀取檔案的任務，例如「讀取 `README.md` 前 10 行並說明」，觀察模型先呼叫哪個工具。
+
+---
+
+## 步驟 5：進階工具呼叫（練習 03）
+
+1. 先閱讀 [docs/03_tool_use_advance.md](./docs/03_tool_use_advance.md)，特別是「主流程圖」與「`execute_tool` 執行流程圖」。
+2. 啟動互動模式。它會保留前面的對話，直到你輸入 `exit` 或 `quit`：
+
+   ```powershell
+   uv run python 03_tool_use_advance/main.py
+   ```
+
+3. 依序輸入下列任務，每輸入一個就按 Enter，等待回應後再輸入下一個：
+
+   - `List the files in the workspace folder.`（列出工作區的檔案）
+   - `Read the first 5 lines of main.py and explain them.`（讀取 `main.py` 前 5 行並說明）
+   - `Read ../README.md.`（嘗試讀取工作區以外的檔案）
+
+4. 輸入 `exit` 結束。
+
+**預期看到**：
+
+- 前兩個任務會正常呼叫 `list_dir`、`read_file`。
+- 第三個任務如果讓模型去讀取工作區以外的路徑，程式會擋下，日誌會出現 `路徑超出工作區範圍` 的錯誤，模型會看到這個錯誤並回報給你。模型也可能選擇不嘗試，這時請改用更明確的指令再試一次。
+
+**也可以單次執行**：傳入命令列參數，執行完一個任務就結束：
+
+```powershell
+uv run python 03_tool_use_advance/main.py "List the files in the workspace folder."
+```
+
+**注意**：03 目前不支援平行工具呼叫，每一步只執行一個工具。
+
+---
+
+## 步驟 6：新增下一課
+
+1. 複製 `00_template/` 並以編號命名，例如 `04_structured_output/`。
+2. 在 `docs/` 新增同名的說明文件，例如 `docs/04_structured_output.md`，內容可參考 [docs/00_template.md](./docs/00_template.md)。
+3. 撰寫程式。若需要額外套件，執行 `uv add <package-name>`。
+4. 更新本檔案的[練習進度追蹤](#練習進度追蹤)表格。
 
 ---
 
@@ -61,7 +170,7 @@ corn_agent/
 
 > 狀態標記：`⬜ 未開始` | `🔄 進行中` | `✅ 已完成`
 
-| 編號 | 練習主題 | 使用工具 / 框架 | 狀態 | 資料夾 |
+| 編號 | 練習主題 | 使用工具 / 框架 | 狀態 | 說明文件 |
 | :--- | :--- | :--- | :---: | :--- |
 | 01 | 本地端模型連線驗證（OpenAI SDK & LangChain） | `openai`, `langchain-openai` | ✅ 已完成 | [01_local_llm_connection](./docs/01_local_llm_connection.md) |
 | 02 | 工具呼叫與最小 Agent 迴圈（Tool Use） | `openai` | ✅ 已完成 | [02_tool_use](./docs/02_tool_use.md) |
@@ -75,69 +184,48 @@ corn_agent/
 
 ---
 
-## 環境建置與使用方式
+## 專案結構
 
-### 1. 安裝相依套件
-
-確認已安裝 [uv](https://docs.astral.sh/uv/)，在專案根目錄執行：
-
-```powershell
-uv sync
+```text
+corn_agent/
+├── README.md                    # 教學總覽與操作步驟（本檔案）
+├── pyproject.toml               # uv 專案設定與共用相依套件
+├── uv.lock                      # uv 鎖定檔
+├── .env.example                 # 模型端點設定範本
+├── .env                         # 個人設定與金鑰（不進 Git）
+├── docs/                        # 所有練習的說明文件
+│   ├── 00_template.md           # 新增練習時的說明文件範本
+│   ├── 01_local_llm_connection.md
+│   ├── 02_tool_use.md
+│   └── 03_tool_use_advance.md
+├── utils/                       # 共用工具模組
+│   ├── __init__.py              # 統一匯出 get_logger、logger、get_openai_client 等
+│   ├── llm.py                   # 讀取 .env，建立 OpenAI / LangChain 用戶端
+│   └── logger.py                # 日誌設定（彩色輸出、檔案輪替）
+├── 00_template/                 # 新增練習用的程式範本
+│   └── main.py
+├── 01_local_llm_connection/     # 練習 01：模型連線驗證
+│   └── main.py
+├── 02_tool_use/                 # 練習 02：工具呼叫與最小 Agent 迴圈
+│   ├── main.py
+│   └── hello_world.py           # uv 環境檢查用的小範例
+└── 03_tool_use_advance/         # 練習 03：進階工具呼叫（進行中）
+    ├── main.py                  # 互動式 Agent 主程式
+    └── tools.py                 # 工具註冊、參數驗證、路徑限制、輸出截斷
 ```
 
-### 2. 設定本地端模型
+---
 
-複製 `.env.example` 為 `.env`，並填入本地端推理服務的位址與模型名稱：
-
-```powershell
-Copy-Item .env.example .env
-```
-
-常見本地端服務的 OpenAI 相容端點：
-
-| 服務 | 預設 `LLM_BASE_URL` | 範例 `LLM_MODEL` |
-| :--- | :--- | :--- |
-| **Ollama** | `http://localhost:11434/v1` | `qwen2.5:7b`, `llama3.1:8b` |
-| **LM Studio** | `http://localhost:1234/v1` | 依 LM Studio 載入的模型 ID |
-| **vLLM / llama.cpp** | `http://localhost:8000/v1` | 依啟動時指定的模型名稱 |
-
-`.env` 內可設定的變數如下：
-
-| 變數 | 必填 | 預設值 | 說明 |
-| :--- | :---: | :--- | :--- |
-| `LLM_BASE_URL` | 否 | `http://localhost:11434/v1` | OpenAI 相容端點的位址 |
-| `LLM_API_KEY` | 否 | `ollama` | 本地端通常不驗證，但 SDK 需要非空字串 |
-| `LLM_MODEL` | 否 | `qwen2.5:7b` | 本地端已載入的模型名稱 |
-| `LOG_LEVEL` | 否 | `INFO` | 日誌等級：`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
-| `LOG_FILE` | 否 | 未設定 | 設定後會同時把日誌寫入此檔案（例如 `logs/corn_agent.log`） |
-| `LOG_COLOR` | 否 | 依終端自動判斷 | 設為 `0` / `false` / `no` / `off` 可關閉彩色輸出 |
-| `NO_COLOR` | 否 | 未設定 | 只要設定此變數（任何值）即關閉彩色輸出 |
-
-### 3. 執行練習
-
-```powershell
-uv run python 01_local_llm_connection/main.py
-```
-
-若只想確認 `uv` 環境可正常執行，可以先執行 `02_tool_use/hello_world.py`：
-
-```powershell
-uv run python 02_tool_use/hello_world.py
-```
-
-### 4. 新增下一次練習
-
-1. 複製 `00_template/` 並以編號命名（例如 `04_structured_output/`）。
-2. 在 `docs/` 新增同名的說明文件（例如 `docs/04_structured_output.md`，內容可參考 `docs/00_template.md`），並填寫程式碼。
-3. 更新本檔案的「練習進度追蹤」表格。
-4. 若需要額外套件，使用 `uv add <package-name>` 安裝。
-
-### 5. 常見問題
+## 常見問題
 
 | 現象 | 可能原因與處理方式 |
 | :--- | :--- |
-| `uv: command not found` | 尚未安裝 uv。請依官方文件安裝後，重新開啟終端機。 |
-| `Connection refused` 或連線逾時 | 本地端推理服務未啟動，或 `LLM_BASE_URL` 的連接埠錯誤。請確認服務已開啟並核對位址。`get_openai_client()` 預設逾時為 60 秒。 |
-| 回應 `model not found` 之類的錯誤 | `LLM_MODEL` 與本地端已載入的模型名稱不一致。請以服務端的模型清單為準修改 `.env`。 |
-| 找不到 `.env` 的設定、仍使用預設值 | 尚未從 `.env.example` 複製出 `.env`，或檔案放錯位置（建議放在專案根目錄）。 |
+| `uv: command not found` | 尚未安裝 uv，或安裝後沒有重新開啟終端機。 |
+| `Connection refused` 或連線逾時 | 本地端服務未啟動，或 `LLM_BASE_URL` 的連接埠錯誤。`get_openai_client()` 預設逾時為 60 秒。 |
+| `404` 或 `model not found` | `LLM_MODEL` 與端點上的模型名稱不一致。請先查詢端點的模型清單，再修改 `.env`。 |
+| `503` 或 `UNAVAILABLE` | 端點上的模型暫時無法使用。請改用其他模型，或稍後再試。 |
+| 模型回應很慢 | 換成較小、較快的模型，並用同一個問題比較回應時間。 |
+| 找不到 `.env` 的設定，仍使用預設值 | 尚未從 `.env.example` 複製出 `.env`，或檔案不在專案根目錄。 |
+| 執行 `run_shell` 時出現 `EOFError` | 這代表程式無法讀取 `y/n` 的確認輸入。請在可以互動的終端機執行，不要用管線（`|`）傳入任務。 |
+| 用管線傳入 `exit` 沒有結束程式 | PowerShell 管線會在開頭加上 BOM（`﻿`）。直接在終端機輸入 `exit` 即可。 |
 | 日誌沒有寫入檔案 | 未設定 `LOG_FILE`，或路徑無法建立。 |
